@@ -585,6 +585,7 @@ export default {
                     
                     // Set validation error state for WeWeb form integration
                     databaseValidationError.value = true;
+                    hasInitialValidation.value = true; // Mark that we've validated this value
                     
                     // Use browser's native validation API
                     if (inputRef.value) {
@@ -608,6 +609,7 @@ export default {
                 // Clear validation error - value does not exist (OK)
                 console.log('Clearing validation - value does not exist (OK)');
                 databaseValidationError.value = false;
+                hasInitialValidation.value = true; // Mark that we've validated this value
                 
                 if (inputRef.value) {
                     inputRef.value.setCustomValidity('');
@@ -663,6 +665,9 @@ export default {
 
             // Only clear loading state, keep validation error visible while typing
             isValidating.value = false;
+            
+            // Reset validation flag when value changes - we need fresh validation
+            hasInitialValidation.value = false;
 
             // Clear validation state for empty values
             if (!newValue) {
@@ -709,14 +714,34 @@ export default {
 
         // Database validation state for WeWeb form integration
         const databaseValidationError = ref(false);
+        const hasInitialValidation = ref(false); // Track if we've done initial validation
 
         const enhancedValidation = computed(() => {
             if (props.content.type === 'database-text') {
-                // Return simple validation that checks our internal state
+                // Return validation that waits for database check to complete
                 return {
                     js: `
-                        // Check if there's a database validation error
-                        return !context.local.databaseValidationError;
+                        // For database validation, we need to check multiple conditions:
+                        // 1. If validation is currently running (isValidating), don't show error yet
+                        // 2. If there's a validation error, show it
+                        // 3. If no validation has run yet and field has value, don't validate until async completes
+                        
+                        const isValidating = context.local.isValidating;
+                        const hasError = context.local.databaseValidationError;
+                        const hasInitialValidation = context.local.hasInitialValidation;
+                        const fieldValue = context.local.data?.value || '';
+                        
+                        // If no value, it's always valid
+                        if (!fieldValue) return true;
+                        
+                        // If currently validating, assume valid (don't show error yet)
+                        if (isValidating) return true;
+                        
+                        // If we haven't done initial validation yet for this value, assume valid
+                        if (!hasInitialValidation) return true;
+                        
+                        // Return the opposite of hasError (true = valid, false = invalid)
+                        return !hasError;
                     `
                 };
             }
@@ -773,6 +798,8 @@ export default {
             required: props.content.required,
             autocomplete: props.content.autocomplete ? 'on' : 'off',
             placeholder: wwLib.wwLang.getText(props.content.placeholder),
+            minlength: props.content.minLength,
+            maxlength: props.content.maxLength, 
             // No style here - it's applied to the container
         }));
 
@@ -916,6 +943,7 @@ export default {
             // Database validation
             isValidating,
             databaseValidationError,
+            hasInitialValidation,
             handleDatabaseInput,
         };
     },

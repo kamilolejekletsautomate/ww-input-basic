@@ -47,6 +47,8 @@ export default {
                 'dbValidationDelay',
                 'dbValidationErrorMessage',
                 'dbValidationShowLoader',
+                'minLength',
+                'maxLength',
             ],
         ],
         hint: (_, sidePanelContent) => {
@@ -705,6 +707,46 @@ export default {
             },
             /* wwEditor:end */
             hidden: content => content.type !== 'database-text',
+        },
+        minLength: {
+            label: {
+                en: 'Min length',
+            },
+            type: 'Number',
+            bindable: true,
+            defaultValue: '',
+            options: {
+                min: 0,
+                max: 1000,
+                step: 1,
+            },
+            /* wwEditor:start */
+            bindingValidation: {
+                type: 'number',
+                tooltip: 'Minimum number of characters required',
+            },
+            /* wwEditor:end */
+            hidden: content => content.type !== 'text' && content.type !== 'textarea' && content.type !== 'database-text' && content.type !== 'email' && content.type !== 'search' && content.type !== 'password',
+        },
+        maxLength: {
+            label: {
+                en: 'Max length',
+            },
+            type: 'Number',
+            bindable: true,
+            defaultValue: '',
+            options: {
+                min: 0,
+                max: 10000,
+                step: 1,
+            },
+            /* wwEditor:start */
+            bindingValidation: {
+                type: 'number',
+                tooltip: 'Maximum number of characters allowed',
+            },
+            /* wwEditor:end */
+            hidden: content => content.type !== 'text' && content.type !== 'textarea' && content.type !== 'database-text' && content.type !== 'email' && content.type !== 'search' && content.type !== 'password',
         },
     },
 };
