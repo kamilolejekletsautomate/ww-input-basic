@@ -501,10 +501,17 @@ export default {
         let validationTimeout = null;
 
         const validateDatabaseValue = async (value) => {
-            // Clear validation for empty values
+            // For empty values, don't do database validation, but don't clear other validation errors
             if (!value || props.content.type !== 'database-text') {
+                // Only clear database-specific errors, not HTML5 validation errors
                 if (inputRef.value) {
-                    inputRef.value.setCustomValidity('');
+                    const currentMessage = inputRef.value.validationMessage;
+                    const dbErrorMessage = wwLib.wwLang.getText(props.content.dbValidationErrorMessage) || 'Value already exists in database';
+                    
+                    if (currentMessage === dbErrorMessage || currentMessage === 'Database validation error' || currentMessage === 'Validation error occurred') {
+                        inputRef.value.setCustomValidity('');
+                        console.log('Cleared database validation error for empty value');
+                    }
                 }
                 return;
             }
@@ -563,17 +570,31 @@ export default {
                 if (exists) {
                     // Value exists - this is an error
                     const errorMsg = wwLib.wwLang.getText(props.content.dbValidationErrorMessage) || 'Value already exists in database';
+                    console.log('Setting validation error:', errorMsg);
                     if (inputRef.value) {
                         inputRef.value.setCustomValidity(errorMsg);
+                        console.log('After setting error - validity.valid:', inputRef.value?.validity?.valid);
+                        console.log('After setting error - validationMessage:', inputRef.value?.validationMessage);
                     }
                     emit('trigger-event', { 
                         name: 'databaseValidation', 
                         event: { value, isValid: false, error: errorMsg } 
                     });
                 } else {
-                    // Value doesn't exist - OK
+                    // Value doesn't exist - OK, but only clear database validation errors
+                    console.log('Database validation OK - clearing only database errors');
                     if (inputRef.value) {
-                        inputRef.value.setCustomValidity('');
+                        // Only clear if the current custom error is from database validation
+                        const currentMessage = inputRef.value.validationMessage;
+                        const dbErrorMessage = wwLib.wwLang.getText(props.content.dbValidationErrorMessage) || 'Value already exists in database';
+                        
+                        if (currentMessage === dbErrorMessage || currentMessage === 'Database validation error' || currentMessage === 'Validation error occurred') {
+                            inputRef.value.setCustomValidity('');
+                            console.log('Cleared database validation error');
+                        } else {
+                            console.log('Keeping existing validation error:', currentMessage);
+                        }
+                        console.log('After clearing - validity.valid:', inputRef.value?.validity?.valid);
                     }
                     emit('trigger-event', { 
                         name: 'databaseValidation', 
@@ -618,13 +639,47 @@ export default {
         const fieldName = computed(() => props.content.fieldName);
         const required = computed(() => props.content.required);
 
+        // For database-text type, we need custom validation to check HTML5 validity
+        const customValidation = computed(() => {
+            if (props.content.type === 'database-text') {
+                return true; // Enable custom validation for database type
+            }
+            return props.content.customValidation;
+        });
+
+        const validation = computed(() => {
+            if (props.content.type === 'database-text') {
+                return {
+                    js: `
+                        // Check HTML5 validity (includes our setCustomValidity)
+                        const input = context.element.$el.querySelector('.database-input-container input') || 
+                                     context.element.$el.querySelector('input.database-text') ||
+                                     context.element.$el.querySelector('input');
+                        if (!input) {
+                            console.warn('Database validation: input element not found');
+                            return true;
+                        }
+                        const isValid = input.validity.valid;
+                        console.log('Database validation check:', { 
+                            value: input.value, 
+                            isValid: isValid, 
+                            validityState: input.validity,
+                            customError: input.validity.customError,
+                            validationMessage: input.validationMessage
+                        });
+                        return isValid;
+                    `
+                };
+            }
+            return props.content.validation;
+        });
 
         useForm(
             variableValue,
             { 
                 fieldName, 
-                validation: props.content.validation, 
-                customValidation: props.content.customValidation, 
+                validation, 
+                customValidation, 
                 required, 
                 initialValue: computed(() => props.content.value) 
             },
