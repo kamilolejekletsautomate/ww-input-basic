@@ -502,8 +502,14 @@ export default {
         let validationTimeout = null;
 
         const validateDatabaseValue = async (value) => {
+            console.log('validateDatabaseValue called:', { value, type: props.content.type, required: props.content.required });
+            
             // For empty values, don't do database validation, but don't clear other validation errors
             if (!value || props.content.type !== 'database-text') {
+                console.log('Skipping database validation - empty value or wrong type');
+                // Database validation passes for empty values (let HTML5 required handle empty validation)
+                databaseValidationPassed.value = true;
+                
                 // Only clear database-specific errors, not HTML5 validation errors
                 if (inputRef.value) {
                     const currentMessage = inputRef.value.validationMessage;
