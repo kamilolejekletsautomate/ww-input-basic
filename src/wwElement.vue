@@ -50,10 +50,10 @@
         @blur="onBlur"
         @keyup.enter="onEnter"
     />
-    <div v-else-if="content.type === 'database-text'" class="database-input-wrapper">
+    <div v-else-if="content.type === 'database-text'" class="database-input-container" :style="style">
         <input
             ref="inputRef"
-            v-bind="inputBindings"
+            v-bind="databaseInputBindings"
             class="ww-input-basic database-text"
             :class="[inputClasses, { 'validating': isValidating }]"
             @input="handleDatabaseInput"
@@ -737,6 +737,19 @@ export default {
             style: [style.value, { resize: props.content.resize ? '' : 'none' }],
         }));
 
+        const databaseInputBindings = computed(() => ({
+            ...props.wwElementState.props.attributes,
+            key: 'ww-input-basic-' + step.value,
+            value: displayValue.value,
+            type: 'text',
+            name: props.wwElementState.name,
+            readonly: isReadonly.value || isEditing.value,
+            required: props.content.required,
+            autocomplete: props.content.autocomplete ? 'on' : 'off',
+            placeholder: wwLib.wwLang.getText(props.content.placeholder),
+            // No style here - it's applied to the container
+        }));
+
         const inputClasses = computed(() => ({
             hideArrows: props.content.hideArrows && inputType.value === 'number',
             'date-placeholder': props.content.type === 'date' && !variableValue.value,
@@ -855,6 +868,7 @@ export default {
             /* wwEditor:end */
             inputBindings,
             textareaBindings,
+            databaseInputBindings,
             inputClasses,
             onEnter,
             handleColorInputClick,
@@ -952,26 +966,42 @@ export default {
         width: 100%;
     }
     
-    &.database-text {
+}
+
+.database-input-container {
+    position: relative;
+    display: block;
+    
+    .ww-input-basic.database-text {
+        width: 100%;
+        height: 100%;
+        border: none;
+        outline: none;
+        background: transparent;
+        font-family: inherit;
+        font-size: inherit;
+        color: inherit;
+        padding: 0;
+        margin: 0;
+        box-sizing: border-box;
+        
         &.validating {
             opacity: 0.7;
         }
     }
-}
-
-.database-input-wrapper {
-    position: relative;
     
     .validation-loader {
         position: absolute;
         right: 8px;
         top: 50%;
         transform: translateY(-50%);
+        pointer-events: none;
+        z-index: 1;
         
         .spinner {
             width: 16px;
             height: 16px;
-            border: 2px solid #f3f3f3;
+            border: 2px solid #ddd;
             border-top: 2px solid #3498db;
             border-radius: 50%;
             animation: spin 1s linear infinite;
