@@ -498,6 +498,7 @@ export default {
 
         // Database validation state and logic
         const isValidating = ref(false);
+        const databaseValidationPassed = ref(true); // Track database validation state
         let validationTimeout = null;
 
         const validateDatabaseValue = async (value) => {
@@ -555,6 +556,7 @@ export default {
                 if (error) {
                     console.error('Database validation error:', error);
                     const errorMsg = 'Database validation error';
+                    databaseValidationPassed.value = false;
                     if (inputRef.value) {
                         inputRef.value.setCustomValidity(errorMsg);
                     }
@@ -571,6 +573,7 @@ export default {
                     // Value exists - this is an error
                     const errorMsg = wwLib.wwLang.getText(props.content.dbValidationErrorMessage) || 'Value already exists in database';
                     console.log('Setting validation error:', errorMsg);
+                    databaseValidationPassed.value = false;
                     if (inputRef.value) {
                         inputRef.value.setCustomValidity(errorMsg);
                         console.log('After setting error - validity.valid:', inputRef.value?.validity?.valid);
@@ -583,6 +586,7 @@ export default {
                 } else {
                     // Value doesn't exist - OK, but only clear database validation errors
                     console.log('Database validation OK - clearing only database errors');
+                    databaseValidationPassed.value = true;
                     if (inputRef.value) {
                         // Only clear if the current custom error is from database validation
                         const currentMessage = inputRef.value.validationMessage;
@@ -605,6 +609,7 @@ export default {
             } catch (err) {
                 console.error('Database validation exception:', err);
                 isValidating.value = false;
+                databaseValidationPassed.value = false;
                 const errorMsg = 'Validation error occurred';
                 if (inputRef.value) {
                     inputRef.value.setCustomValidity(errorMsg);
@@ -651,23 +656,33 @@ export default {
             if (props.content.type === 'database-text') {
                 return {
                     js: `
-                        // Check HTML5 validity (includes our setCustomValidity)
+                        // Check both HTML5 validity AND database validation state
                         const input = context.element.$el.querySelector('.database-input-container input') || 
                                      context.element.$el.querySelector('input.database-text') ||
                                      context.element.$el.querySelector('input');
+                        
                         if (!input) {
                             console.warn('Database validation: input element not found');
                             return true;
                         }
-                        const isValid = input.validity.valid;
-                        console.log('Database validation check:', { 
+                        
+                        // Check HTML5 validity (minlength, maxlength, required, etc.)
+                        const html5Valid = input.validity.valid;
+                        
+                        // Check database validation state from our reactive variable
+                        const databaseValid = context.local.databaseValidationPassed;
+                        
+                        const finalValid = html5Valid && databaseValid;
+                        
+                        console.log('Validation check:', { 
                             value: input.value, 
-                            isValid: isValid, 
-                            validityState: input.validity,
-                            customError: input.validity.customError,
+                            html5Valid: html5Valid,
+                            databaseValid: databaseValid,
+                            finalValid: finalValid,
                             validationMessage: input.validationMessage
                         });
-                        return isValid;
+                        
+                        return finalValid;
                     `
                 };
             }
@@ -868,6 +883,7 @@ export default {
             // End Currency
             // Database validation
             isValidating,
+            databaseValidationPassed,
             handleDatabaseInput,
         };
     },
