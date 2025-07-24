@@ -647,14 +647,14 @@ export default {
                 clearTimeout(validationTimeout);
             }
 
-            // Clear validation state immediately while typing
-            if (inputRef.value) {
-                inputRef.value.setCustomValidity('');
-            }
+            // Only clear loading state, keep validation error visible while typing
             isValidating.value = false;
 
-            // Clear validation state immediately for empty values
+            // Clear validation state for empty values
             if (!newValue) {
+                if (inputRef.value) {
+                    inputRef.value.setCustomValidity('');
+                }
                 emit('trigger-event', { name: 'change', event: { domEvent: event, value: newValue } });
                 emit('element-event', { type: 'change', value: { domEvent: event, value: newValue } });
                 return;
