@@ -681,7 +681,7 @@ export default {
             },
             type: 'Text',
             bindable: true,
-            defaultValue: 'Value does not exist in database',
+            defaultValue: 'Value already exists in database',
             multiLang: true,
             /* wwEditor:start */
             bindingValidation: {

@@ -545,6 +545,8 @@ export default {
 
                 isValidating.value = false;
 
+                console.log('Database validation response:', { data, error, value });
+
                 if (error) {
                     console.error('Database validation error:', error);
                     const errorMessage = wwLib.wwLang.getText(props.content.dbValidationErrorMessage) || 'Validation error occurred';
@@ -552,6 +554,7 @@ export default {
                     // Use browser's native validation API
                     if (inputRef.value) {
                         inputRef.value.setCustomValidity(errorMessage);
+                        inputRef.value.reportValidity(); // Force show validation message
                     }
                     
                     // Emit database validation event
@@ -568,12 +571,16 @@ export default {
                 }
 
                 const exists = data === true;
-                if (!exists) {
-                    const errorMessage = wwLib.wwLang.getText(props.content.dbValidationErrorMessage) || 'Value does not exist in database';
+                console.log('Validation result:', { exists, data, shouldShowError: exists });
+                
+                if (exists) {
+                    const errorMessage = wwLib.wwLang.getText(props.content.dbValidationErrorMessage) || 'Value already exists in database';
+                    console.log('Setting validation error - value exists:', errorMessage);
                     
                     // Use browser's native validation API
                     if (inputRef.value) {
                         inputRef.value.setCustomValidity(errorMessage);
+                        inputRef.value.reportValidity(); // Force show validation message
                     }
                     
                     // Emit database validation event
@@ -589,7 +596,8 @@ export default {
                     return false;
                 }
 
-                // Clear validation error - value exists
+                // Clear validation error - value does not exist (OK)
+                console.log('Clearing validation - value does not exist (OK)');
                 if (inputRef.value) {
                     inputRef.value.setCustomValidity('');
                 }
