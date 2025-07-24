@@ -501,45 +501,42 @@ export default {
         let validationTimeout = null;
 
         const validateDatabaseValue = async (value) => {
+            // Clear validation for empty values
             if (!value || props.content.type !== 'database-text') {
-                // Clear any existing validation state
-                databaseValidationError.value = false;
                 if (inputRef.value) {
                     inputRef.value.setCustomValidity('');
                 }
-                return true;
+                return;
             }
 
-            // Check if all required config is present
+            // Check if config is complete
             const { dbValidationFunction, dbValidationTable, dbValidationColumn } = props.content;
             if (!dbValidationFunction || !dbValidationTable || !dbValidationColumn) {
-                databaseValidationError.value = false;
                 if (inputRef.value) {
                     inputRef.value.setCustomValidity('');
                 }
-                return true; // Skip validation if config is incomplete
+                return;
             }
 
             isValidating.value = true;
 
             try {
-                // Get Supabase instance the same way as useRPCSearch
+                // Get Supabase instance
                 let supabase = null;
                 if (typeof window !== 'undefined' && window.wwLib && window.wwLib.wwPlugins && window.wwLib.wwPlugins.supabase && window.wwLib.wwPlugins.supabase.instance) {
                     supabase = window.wwLib.wwPlugins.supabase.instance;
                 }
                 
                 if (!supabase) {
-                    console.warn('Supabase client not available for database validation');
+                    console.warn('Supabase client not available');
                     isValidating.value = false;
-                    databaseValidationError.value = false;
                     if (inputRef.value) {
                         inputRef.value.setCustomValidity('');
                     }
-                    return true;
+                    return;
                 }
 
-                // Call the PostgreSQL function
+                // Call database function
                 const { data, error } = await supabase.rpc(dbValidationFunction, {
                     p_table_name: dbValidationTable,
                     p_column_name: dbValidationColumn,
@@ -548,154 +545,71 @@ export default {
 
                 isValidating.value = false;
 
-                console.log('Database validation response:', { data, error, value });
-
                 if (error) {
                     console.error('Database validation error:', error);
-                    const errorMessage = wwLib.wwLang.getText(props.content.dbValidationErrorMessage) || 'Validation error occurred';
-                    
-                    // Set validation error state for WeWeb form integration
-                    databaseValidationError.value = true;
-                    
-                    // Use browser's native validation API
+                    const errorMsg = 'Database validation error';
                     if (inputRef.value) {
-                        inputRef.value.setCustomValidity(errorMessage);
-                        inputRef.value.reportValidity(); // Force show validation message
+                        inputRef.value.setCustomValidity(errorMsg);
                     }
-                    
-                    // Emit database validation event
                     emit('trigger-event', { 
                         name: 'databaseValidation', 
-                        event: { 
-                            value: value, 
-                            isValid: false, 
-                            error: errorMessage 
-                        } 
+                        event: { value, isValid: false, error: errorMsg } 
                     });
-                    
-                    return false;
+                    return;
                 }
 
                 const exists = data === true;
-                console.log('Validation result:', { exists, data, shouldShowError: exists });
                 
                 if (exists) {
-                    const errorMessage = wwLib.wwLang.getText(props.content.dbValidationErrorMessage) || 'Value already exists in database';
-                    console.log('Setting validation error - value exists:', errorMessage);
-                    
-                    // Set validation error state for WeWeb form integration
-                    databaseValidationError.value = true;
-                    hasInitialValidation.value = true; // Mark that we've validated this value
-                    
-                    // Use browser's native validation API
+                    // Value exists - this is an error
+                    const errorMsg = wwLib.wwLang.getText(props.content.dbValidationErrorMessage) || 'Value already exists in database';
                     if (inputRef.value) {
-                        inputRef.value.setCustomValidity(errorMessage);
-                        inputRef.value.reportValidity(); // Force show validation message
+                        inputRef.value.setCustomValidity(errorMsg);
                     }
-                    
-                    // Emit database validation event
                     emit('trigger-event', { 
                         name: 'databaseValidation', 
-                        event: { 
-                            value: value, 
-                            isValid: false, 
-                            error: errorMessage 
-                        } 
+                        event: { value, isValid: false, error: errorMsg } 
                     });
-                    
-                    return false;
+                } else {
+                    // Value doesn't exist - OK
+                    if (inputRef.value) {
+                        inputRef.value.setCustomValidity('');
+                    }
+                    emit('trigger-event', { 
+                        name: 'databaseValidation', 
+                        event: { value, isValid: true, error: '' } 
+                    });
                 }
-
-                // Clear validation error - value does not exist (OK)
-                console.log('Clearing validation - value does not exist (OK)');
-                databaseValidationError.value = false;
-                hasInitialValidation.value = true; // Mark that we've validated this value
-                
-                if (inputRef.value) {
-                    inputRef.value.setCustomValidity('');
-                }
-                
-                // Emit successful validation event
-                emit('trigger-event', { 
-                    name: 'databaseValidation', 
-                    event: { 
-                        value: value, 
-                        isValid: true, 
-                        error: '' 
-                    } 
-                });
-                
-                return true;
 
             } catch (err) {
                 console.error('Database validation exception:', err);
                 isValidating.value = false;
-                const errorMessage = wwLib.wwLang.getText(props.content.dbValidationErrorMessage) || 'Validation error occurred';
-                
-                // Set validation error state for WeWeb form integration
-                databaseValidationError.value = true;
-                
-                // Use browser's native validation API
+                const errorMsg = 'Validation error occurred';
                 if (inputRef.value) {
-                    inputRef.value.setCustomValidity(errorMessage);
+                    inputRef.value.setCustomValidity(errorMsg);
                 }
-                
-                // Emit database validation event
                 emit('trigger-event', { 
                     name: 'databaseValidation', 
-                    event: { 
-                        value: value, 
-                        isValid: false, 
-                        error: errorMessage 
-                    } 
+                    event: { value, isValid: false, error: errorMsg } 
                 });
-                
-                return false;
             }
         };
 
         const handleDatabaseInput = (event) => {
+            // First, handle it like a normal input
+            handleManualInput(event);
+            
             const newValue = event.target.value;
-            setValue(newValue);
-
-            // Clear existing timeout
+            
+            // Clear existing validation timeout
             if (validationTimeout) {
                 clearTimeout(validationTimeout);
             }
 
-            // Only clear loading state, keep validation error visible while typing
-            isValidating.value = false;
-            
-            // Reset validation flag when value changes - we need fresh validation
-            hasInitialValidation.value = false;
-
-            // Clear validation state for empty values
-            if (!newValue) {
-                databaseValidationError.value = false;
-                if (inputRef.value) {
-                    inputRef.value.setCustomValidity('');
-                }
-                emit('trigger-event', { name: 'change', event: { domEvent: event, value: newValue } });
-                emit('element-event', { type: 'change', value: { domEvent: event, value: newValue } });
-                return;
-            }
-
-            // Set up debounced validation
+            // Set up debounced database validation
             const delay = props.content.dbValidationDelay || 500;
-            validationTimeout = setTimeout(async () => {
-                await validateDatabaseValue(newValue);
-                
-                // Emit events after validation
-                if (props.content.debounce) {
-                    const debounceDelay = wwLib.wwUtils.getLengthUnit(props.content.debounceDelay).value;
-                    setTimeout(() => {
-                        emit('trigger-event', { name: 'change', event: { domEvent: event, value: newValue } });
-                        emit('element-event', { type: 'change', value: { domEvent: event, value: newValue } });
-                    }, debounceDelay);
-                } else {
-                    emit('trigger-event', { name: 'change', event: { domEvent: event, value: newValue } });
-                    emit('element-event', { type: 'change', value: { domEvent: event, value: newValue } });
-                }
+            validationTimeout = setTimeout(() => {
+                validateDatabaseValue(newValue);
             }, delay);
         };
 
@@ -704,56 +618,13 @@ export default {
         const fieldName = computed(() => props.content.fieldName);
         const required = computed(() => props.content.required);
 
-        // Enhanced validation for database-text type
-        const enhancedCustomValidation = computed(() => {
-            if (props.content.type === 'database-text') {
-                return true; // Enable custom validation for database type
-            }
-            return props.content.customValidation;
-        });
-
-        // Database validation state for WeWeb form integration
-        const databaseValidationError = ref(false);
-        const hasInitialValidation = ref(false); // Track if we've done initial validation
-
-        const enhancedValidation = computed(() => {
-            if (props.content.type === 'database-text') {
-                // Return validation that waits for database check to complete
-                return {
-                    js: `
-                        // For database validation, we need to check multiple conditions:
-                        // 1. If validation is currently running (isValidating), don't show error yet
-                        // 2. If there's a validation error, show it
-                        // 3. If no validation has run yet and field has value, don't validate until async completes
-                        
-                        const isValidating = context.local.isValidating;
-                        const hasError = context.local.databaseValidationError;
-                        const hasInitialValidation = context.local.hasInitialValidation;
-                        const fieldValue = context.local.data?.value || '';
-                        
-                        // If no value, it's always valid
-                        if (!fieldValue) return true;
-                        
-                        // If currently validating, assume valid (don't show error yet)
-                        if (isValidating) return true;
-                        
-                        // If we haven't done initial validation yet for this value, assume valid
-                        if (!hasInitialValidation) return true;
-                        
-                        // Return the opposite of hasError (true = valid, false = invalid)
-                        return !hasError;
-                    `
-                };
-            }
-            return props.content.validation;
-        });
 
         useForm(
             variableValue,
             { 
                 fieldName, 
-                validation: enhancedValidation, 
-                customValidation: enhancedCustomValidation, 
+                validation: props.content.validation, 
+                customValidation: props.content.customValidation, 
                 required, 
                 initialValue: computed(() => props.content.value) 
             },
@@ -942,8 +813,6 @@ export default {
             // End Currency
             // Database validation
             isValidating,
-            databaseValidationError,
-            hasInitialValidation,
             handleDatabaseInput,
         };
     },
