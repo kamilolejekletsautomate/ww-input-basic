@@ -521,8 +521,11 @@ export default {
             isValidating.value = true;
 
             try {
-                // Create Supabase client (assuming it's available globally)
-                const supabase = wwLib?.wwVariables?.getValue?.('supabase') || window.supabase;
+                // Get Supabase instance the same way as useRPCSearch
+                let supabase = null;
+                if (typeof window !== 'undefined' && window.wwLib && window.wwLib.wwPlugins && window.wwLib.wwPlugins.supabase && window.wwLib.wwPlugins.supabase.instance) {
+                    supabase = window.wwLib.wwPlugins.supabase.instance;
+                }
                 
                 if (!supabase) {
                     console.warn('Supabase client not available for database validation');
