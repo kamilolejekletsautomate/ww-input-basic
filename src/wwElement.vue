@@ -565,6 +565,8 @@ export default {
                     databaseValidationPassed.value = false;
                     if (inputRef.value) {
                         inputRef.value.setCustomValidity(errorMsg);
+                        // Force browser to show validation and trigger events
+                        inputRef.value.reportValidity();
                     }
                     emit('trigger-event', { 
                         name: 'databaseValidation', 
@@ -582,6 +584,8 @@ export default {
                     databaseValidationPassed.value = false;
                     if (inputRef.value) {
                         inputRef.value.setCustomValidity(errorMsg);
+                        // Force browser to show validation and trigger events
+                        inputRef.value.reportValidity();
                         console.log('After setting error - validity.valid:', inputRef.value?.validity?.valid);
                         console.log('After setting error - validationMessage:', inputRef.value?.validationMessage);
                     }
@@ -619,6 +623,8 @@ export default {
                 const errorMsg = 'Validation error occurred';
                 if (inputRef.value) {
                     inputRef.value.setCustomValidity(errorMsg);
+                    // Force browser to show validation and trigger events
+                    inputRef.value.reportValidity();
                 }
                 emit('trigger-event', { 
                     name: 'databaseValidation', 
@@ -650,57 +656,14 @@ export default {
         const fieldName = computed(() => props.content.fieldName);
         const required = computed(() => props.content.required);
 
-        // For database-text type, we need custom validation to check HTML5 validity
-        const customValidation = computed(() => {
-            if (props.content.type === 'database-text') {
-                return true; // Enable custom validation for database type
-            }
-            return props.content.customValidation;
-        });
-
-        const validation = computed(() => {
-            if (props.content.type === 'database-text') {
-                return {
-                    js: `
-                        // Check both HTML5 validity AND database validation state
-                        const input = context.element.$el.querySelector('.database-input-container input') || 
-                                     context.element.$el.querySelector('input.database-text') ||
-                                     context.element.$el.querySelector('input');
-                        
-                        if (!input) {
-                            console.warn('Database validation: input element not found');
-                            return true;
-                        }
-                        
-                        // Check HTML5 validity (minlength, maxlength, required, etc.)
-                        const html5Valid = input.validity.valid;
-                        
-                        // Check database validation state from our reactive variable
-                        const databaseValid = context.local.databaseValidationPassed;
-                        
-                        const finalValid = html5Valid && databaseValid;
-                        
-                        console.log('Validation check:', { 
-                            value: input.value, 
-                            html5Valid: html5Valid,
-                            databaseValid: databaseValid,
-                            finalValid: finalValid,
-                            validationMessage: input.validationMessage
-                        });
-                        
-                        return finalValid;
-                    `
-                };
-            }
-            return props.content.validation;
-        });
-
+        // For database-text, just use standard form registration without custom validation
+        // Let the browser's setCustomValidity handle everything
         useForm(
             variableValue,
             { 
                 fieldName, 
-                validation, 
-                customValidation, 
+                validation: props.content.validation, 
+                customValidation: props.content.customValidation, 
                 required, 
                 initialValue: computed(() => props.content.value) 
             },
