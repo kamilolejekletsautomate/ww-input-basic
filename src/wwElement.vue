@@ -503,6 +503,7 @@ export default {
         const validateDatabaseValue = async (value) => {
             if (!value || props.content.type !== 'database-text') {
                 // Clear any existing validation state
+                databaseValidationError.value = false;
                 if (inputRef.value) {
                     inputRef.value.setCustomValidity('');
                 }
@@ -512,6 +513,7 @@ export default {
             // Check if all required config is present
             const { dbValidationFunction, dbValidationTable, dbValidationColumn } = props.content;
             if (!dbValidationFunction || !dbValidationTable || !dbValidationColumn) {
+                databaseValidationError.value = false;
                 if (inputRef.value) {
                     inputRef.value.setCustomValidity('');
                 }
@@ -530,6 +532,7 @@ export default {
                 if (!supabase) {
                     console.warn('Supabase client not available for database validation');
                     isValidating.value = false;
+                    databaseValidationError.value = false;
                     if (inputRef.value) {
                         inputRef.value.setCustomValidity('');
                     }
@@ -550,6 +553,9 @@ export default {
                 if (error) {
                     console.error('Database validation error:', error);
                     const errorMessage = wwLib.wwLang.getText(props.content.dbValidationErrorMessage) || 'Validation error occurred';
+                    
+                    // Set validation error state for WeWeb form integration
+                    databaseValidationError.value = true;
                     
                     // Use browser's native validation API
                     if (inputRef.value) {
@@ -577,6 +583,9 @@ export default {
                     const errorMessage = wwLib.wwLang.getText(props.content.dbValidationErrorMessage) || 'Value already exists in database';
                     console.log('Setting validation error - value exists:', errorMessage);
                     
+                    // Set validation error state for WeWeb form integration
+                    databaseValidationError.value = true;
+                    
                     // Use browser's native validation API
                     if (inputRef.value) {
                         inputRef.value.setCustomValidity(errorMessage);
@@ -598,6 +607,8 @@ export default {
 
                 // Clear validation error - value does not exist (OK)
                 console.log('Clearing validation - value does not exist (OK)');
+                databaseValidationError.value = false;
+                
                 if (inputRef.value) {
                     inputRef.value.setCustomValidity('');
                 }
@@ -618,6 +629,9 @@ export default {
                 console.error('Database validation exception:', err);
                 isValidating.value = false;
                 const errorMessage = wwLib.wwLang.getText(props.content.dbValidationErrorMessage) || 'Validation error occurred';
+                
+                // Set validation error state for WeWeb form integration
+                databaseValidationError.value = true;
                 
                 // Use browser's native validation API
                 if (inputRef.value) {
@@ -652,6 +666,7 @@ export default {
 
             // Clear validation state for empty values
             if (!newValue) {
+                databaseValidationError.value = false;
                 if (inputRef.value) {
                     inputRef.value.setCustomValidity('');
                 }
@@ -692,16 +707,16 @@ export default {
             return props.content.customValidation;
         });
 
+        // Database validation state for WeWeb form integration
+        const databaseValidationError = ref(false);
+
         const enhancedValidation = computed(() => {
             if (props.content.type === 'database-text') {
-                // Create custom validation formula for database validation
+                // Return simple validation that checks our internal state
                 return {
                     js: `
-                        // Database validation is handled by the component
-                        // Return the current validation state
-                        const component = context.local.component;
-                        const validationError = component?.$refs?.componentRef?.validationError;
-                        return validationError !== true;
+                        // Check if there's a database validation error
+                        return !context.local.databaseValidationError;
                     `
                 };
             }
@@ -900,6 +915,7 @@ export default {
             // End Currency
             // Database validation
             isValidating,
+            databaseValidationError,
             handleDatabaseInput,
         };
     },
